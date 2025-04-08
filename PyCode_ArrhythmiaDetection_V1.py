@@ -16,6 +16,7 @@
  - Feature set extraction - 3 minutes time duration with 10 seconds interval
  
 """
+from pyexpat import model
 import numpy as np
 from scipy.signal import savgol_filter,filtfilt,welch,butter
 import seaborn as sns
@@ -33,8 +34,29 @@ import peakutils
 from itertools import islice
 import xlwt
 
+#changed code
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
 
+class PPG_CNN(nn.Module):
+    def __init__(self):
+        super(PPG_CNN, self).__init__()
+        self.conv1 = nn.Conv1d(in_channels=1, out_channels=16, kernel_size=5, padding=2)
+        self.conv2 = nn.Conv1d(16, 32, 5, padding=2)
+        self.pool = nn.MaxPool1d(2)
+        self.dropout = nn.Dropout(0.3)
+        self.fc1 = nn.Linear(32 * 250, 64)  # for input of length 1000
+        self.fc2 = nn.Linear(64, 4)  # 4 classes
 
+    def forward(self, x):
+        x = self.pool(F.relu(self.conv1(x)))  # (B, 16, 500)
+        x = self.pool(F.relu(self.conv2(x)))  # (B, 32, 250)
+        x = x.view(-1, 32 * 250)
+        x = self.dropout(F.relu(self.fc1(x)))
+        x = self.fc2(x)
+        return x
+#end changed code
 
 import matplotlib.pyplot as plt
 plt.rcParams.update({'font.size': 20})
@@ -344,15 +366,29 @@ for filename in lines:
             print('Number of instanteneous HR higher than 100:',highHowMany)
             print('Number of instanteneous HR lower than 60:',lowHowMany)
 
-            if (shE>2.9):
-                print("SOFT DECISION: POSSIBLE ATRIAL FIBRILLATION")
-            elif (highHowMany >= 5):
-                print("SOFT DECISION: POSSIBLE TACHYCARDIA\n")
-            elif(lowHowMany >= 5):
-                print("SOFT DECISION: POSSIBLE BRADYCARDIA\n")
-            else:
-                print("SOFT DECISION: NORMAL HEART-RATE \n")
-                
+            #if (shE>2.9):
+            #    print("SOFT DECISION: POSSIBLE ATRIAL FIBRILLATION")
+            #elif (highHowMany >= 5):
+            #    print("SOFT DECISION: POSSIBLE TACHYCARDIA\n")
+            #elif(lowHowMany >= 5):
+            #    print("SOFT DECISION: POSSIBLE BRADYCARDIA\n")
+            #else:
+            #    print("SOFT DECISION: NORMAL HEART-RATE \n")
+
+            #changed code
+             # Assume `filtereddata` is a 10s PPG array of shape (1000,)
+            ppg_input = torch.tensor(filtereddata, dtype=torch.float32).unsqueeze(0).unsqueeze(0)  # Shape: (1, 1, 1000)
+
+            model.eval()
+            with torch.no_grad():
+                 output = model(ppg_input)
+                 prediction = torch.argmax(output, dim=1).item()
+
+            # Now map prediction to label
+            labels = ['NORMAL', 'AFIB', 'TACHYCARDIA', 'BRADYCARDIA']
+            print("CNN Decision:", labels[prediction])
+
+
 
    
             
