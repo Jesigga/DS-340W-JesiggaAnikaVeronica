@@ -46,16 +46,21 @@ class PPG_CNN(nn.Module):
         self.conv2 = nn.Conv1d(16, 32, 5, padding=2)
         self.pool = nn.MaxPool1d(2)
         self.dropout = nn.Dropout(0.3)
-        self.fc1 = nn.Linear(32 * 250, 64)  # for input of length 1000
-        self.fc2 = nn.Linear(64, 4)  # 4 classes
+        self.fc1 = nn.Linear(32 * 62, 64)  # adjusted for 500 input
+        self.fc2 = nn.Linear(64, 4)
 
     def forward(self, x):
-        x = self.pool(F.relu(self.conv1(x)))  # (B, 16, 500)
-        x = self.pool(F.relu(self.conv2(x)))  # (B, 32, 250)
-        x = x.view(-1, 32 * 250)
+        x = self.pool(F.relu(self.conv1(x)))  # (B, 16, 250)
+        x = self.pool(F.relu(self.conv2(x)))  # (B, 32, 125)
+        x = x.view(-1, 32 * 62)
         x = self.dropout(F.relu(self.fc1(x)))
         x = self.fc2(x)
         return x
+# Initialize model
+model = PPG_CNN()
+
+# Switch to evaluation mode
+model.eval() 
 #end changed code
 
 import matplotlib.pyplot as plt
@@ -293,6 +298,37 @@ for filename in lines:
                 
                 continue
             
+            #changed Code
+            # CNN prediction logic
+            segment_length = 250
+            stride = 125  # You can change this for more/fewer segments
+
+            if len(filtereddata) >= segment_length:
+                segments = []
+
+                for i in range(0, len(filtereddata) - segment_length + 1, stride):
+                    segment = filtereddata[i:i + segment_length]
+                    tensor_segment = torch.tensor(segment, dtype=torch.float32).view(1, 1, -1)
+                    segments.append(tensor_segment)
+
+                if segments:
+                    ppg_batch = torch.cat(segments, dim=0)  # shape: (N, 1, 1000)
+
+                    # Run batch through model
+                    with torch.no_grad():
+                        outputs = model(ppg_batch)  # (N, 4)
+                        predictions = torch.argmax(outputs, dim=1)  # (N,)
+
+                    # Label mapping
+                    labels = ['NORMAL', 'AFIB', 'TACHYCARDIA', 'BRADYCARDIA']
+                    predicted_labels = [labels[p.item()] for p in predictions]
+                    print("CNN Predicted Labels:", predicted_labels)
+                else:
+                    print("No valid segments could be extracted.")
+            else:
+                print("Filtered data too short for CNN segment.")
+
+            #end changed code
 
             # Peakdetection in PPG Signal
 
@@ -377,16 +413,41 @@ for filename in lines:
 
             #changed code
              # Assume `filtereddata` is a 10s PPG array of shape (1000,)
-            ppg_input = torch.tensor(filtereddata, dtype=torch.float32).unsqueeze(0).unsqueeze(0)  # Shape: (1, 1, 1000)
+            #ppg_input = torch.tensor(filtereddata, dtype=torch.float32).unsqueeze(0).unsqueeze(0)  # Shape: (1, 1, 1000)
 
-            model.eval()
+            #model.eval()
+            #with torch.no_grad():
+            #     output = model(ppg_input)
+            #     prediction = torch.argmax(output, dim=1).item()
+            #changed code again
+            segment_length = 500
+            stride = 125  # 10s chunks with overlap (optional)
+            segments = []
+
+            for i in range(0, len(filtereddata) - segment_length + 1, stride):
+                segment = filtereddata[i:i + segment_length]
+                tensor_segment = torch.tensor(segment, dtype=torch.float32).view(1, 1, -1)
+                segments.append(tensor_segment)
+
+            # Stack into a batch
+            ppg_batch = torch.cat(segments, dim=0)  # shape: (N, 1, 1000)
+
+            # Run all through the model
             with torch.no_grad():
-                 output = model(ppg_input)
-                 prediction = torch.argmax(output, dim=1).item()
+                outputs = model(ppg_batch)  # shape: (N, 4)
+                predictions = torch.argmax(outputs, dim=1)  # shape: (N,)
+
+            # Convert to labels
+            labels = ['NORMAL', 'AFIB', 'TACHYCARDIA', 'BRADYCARDIA']
+            predicted_labels = [labels[p.item()] for p in predictions]
+            print(predicted_labels)  # You now have one label per 10s segment
+
+            #end changed code
+
 
             # Now map prediction to label
-            labels = ['NORMAL', 'AFIB', 'TACHYCARDIA', 'BRADYCARDIA']
-            print("CNN Decision:", labels[prediction])
+            #labels = ['NORMAL', 'AFIB', 'TACHYCARDIA', 'BRADYCARDIA']
+            #print("CNN Decision:", labels[prediction])
 
 
 
