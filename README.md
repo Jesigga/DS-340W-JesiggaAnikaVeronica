@@ -1,4 +1,1 @@
-"# Statistical-Analysis-of-Heart-Rate-Variability-Extracted-From-Wearable-Devices" 
-"# Statistical-Analysis-of-Heart-Rate-Variability-Extracted-From-Wearable-Devices" 
-"# Statistical-Analysis-of-Heart-Rate-Variability-Extracted-From-Wearable-Devices" 
-"# Statistical-Analysis-of-Heart-Rate-Variability-Extracted-From-Wearable-Devices" 
+Run the "PyCode_ArrhythmiaDetection_V1.py" file once you download all files and open it in an editor.
